@@ -21,11 +21,13 @@ on:
       config_dir:
         description: 'git-chglog configuration directory'
         type: string
+        default: '.chglog'
         required: false
 
       filename:
         description: 'Filename to write the changelog to'
         type: string
+        default: 'CHANGELOG.md'
         required: false
 
       path:
@@ -75,6 +77,7 @@ on:
       config_dir:
         description: '[CHANGELOG] git-chglog configuration directory'
         type: string
+        default: '.chglog'
         required: false
 
       filename:
