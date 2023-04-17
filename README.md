@@ -63,6 +63,7 @@ jobs:
 ```
 
 ### Release & Publish
+> Note: You will need a `NPM_TOKEN` secret in your repository to publish the package. You can create one from the [NPM website](https://www.npmjs.com/settings/your-username/tokens). You can also use the [NPM CLI](https://docs.npmjs.com/creating-and-viewing-authentication-tokens) to create one.
 ```yaml
 # Path: .github/workflows/release.yml
 name: Release & Publish
@@ -141,4 +142,5 @@ jobs:
     with:
       version_type: ${{ github.event.inputs.version_type }}
       release_channel: ${{ github.event.inputs.release_channel }}
+  secrets: inherit # Or pass just what secret you want. This is required to pass the NPM_TOKEN needed to publish the package
 ```
