@@ -1,0 +1,62 @@
+name: Build changelog
+on:
+  workflow_call:
+    inputs:
+      next_version:
+        description: 'Next version tag to use instead of UNRELEASED'
+        type: string
+        required: false
+
+      config_dir:
+        description: 'git-chglog configuration directory'
+        type: string
+        required: false
+
+      filename:
+        description: 'Filename to write the changelog to'
+        type: string
+        required: false
+
+      path:
+        description: 'Optional path to follow for directory'
+        default: ''
+        type: string
+        required: false
+
+      tag_query:
+        description: 'Optional tag query to use for changelog generation'
+        default: ''
+        type: string
+        required: false
+
+      commit_message:
+        type: string
+        description: "Commit message"
+        required: false
+
+jobs:
+  generate_changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: maicol07/github-changelog-action@master
+        with:
+          next_version: ${{ github.event.inputs.next_version }}
+      - uses: oleksiyrudenko/gha-git-credentials@v2-latest
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+      - name: Commit & Push
+        uses: stefanzweifel/git-auto-commit-action@v4
+        if: ${{ !github.event.inputs.commit_message }}
+        with:
+          commit_message: "changelog: 📝 Updated changelog for ${{ github.event.inputs.next_version && 'release' || 'commit' }} ${{ github.event.inputs.next_version && github.event.inputs.next_version || github.sha }}"
+          file_pattern: 'CHANGELOG.md'
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        if: ${{ github.event.inputs.commit_message }}
+        with:
+          commit_message: ${{ github.event.inputs.commit_message }}
+          file_pattern: 'CHANGELOG.md'
