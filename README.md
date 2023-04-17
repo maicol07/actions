@@ -6,9 +6,9 @@ This repository contains a collection of GitHub Actions that can be used in your
 To use an action in your workflow, you must include it in your workflow file.
 
 ## Examples
-### Publish & Release
+### Release & Publish
 ```yaml
-name: Publish & Release
+name: Release & Publish
 on:
   workflow_dispatch:
     inputs:
@@ -66,7 +66,7 @@ on:
 
 jobs:
   changelog:
-    uses: maicol07/actions/.github/workflows/changelog.yml
+    uses: maicol07/actions/.github/workflows/changelog.yml@main
     with:
       next_version: ${{ github.event.inputs.next_version }}
       config_dir: ${{ github.event.inputs.config_dir }}
@@ -76,7 +76,7 @@ jobs:
       commit_message: ${{ github.event.inputs.commit_message }}
   release_publish:
     needs: changelog
-    uses: maicol07/actions/.github/workflows/release_publish.yml
+    uses: maicol07/actions/.github/workflows/release_publish.yml@main
     with:
       version_type: ${{ github.event.inputs.version_type }}
       release_channel: ${{ github.event.inputs.release_channel }}
