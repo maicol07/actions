@@ -53,14 +53,13 @@ jobs:
         with:
           next_version: ${{ steps.version_bump.outputs.newTag }}
           filename: CHANGELOG-release.md
-      - name: Remove File
-        run: rm CHANGELOG-release.md
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: ${{ steps.new_tag_changelog.outputs.changelog }}
+          body_path: CHANGELOG-release.md
           tag_name: ${{ steps.version_bump.outputs.newTag }}
-
+      - name: Remove File
+        run: rm CHANGELOG-release.md
       - name: Set publishing config
         run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
         env:
