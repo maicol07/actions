@@ -51,7 +51,7 @@ jobs:
         id: new_tag_changelog
         uses: maicol07/github-changelog-action@master
         with:
-          next_version: ${{ steps.version_bump.outputs.newTag }}
+          tag_query: ${{ steps.version_bump.outputs.newTag }}
           filename: CHANGELOG-release.md
       - name: Release
         uses: softprops/action-gh-release@v1
