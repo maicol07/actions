@@ -45,6 +45,10 @@ jobs:
           submodules: recursive
       - uses: maicol07/github-changelog-action@master
         with:
+          config_dir: ${{ github.event.inputs.config_dir }}
+          filename: ${{ github.event.inputs.filename }}
+          path: ${{ github.event.inputs.path }}
+          tag_query: ${{ github.event.inputs.tag_query }}
           next_version: ${{ github.event.inputs.next_version }}
       - uses: oleksiyrudenko/gha-git-credentials@v2-latest
         with:
