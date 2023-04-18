@@ -35,6 +35,11 @@ on:
         type: string
         description: "Commit message"
         required: false
+      no_autodetect:
+        type: boolean
+        description: "Disable autodetecting the next version"
+        required: false
+        default: false
 
 jobs:
   generate_changelog:
@@ -48,13 +53,19 @@ jobs:
       - name: Get next version
         id: get_next_version
         uses: thenativeweb/get-next-version@main
+        if: ${{ !github.event.inputs.no_autodetect }}
+      - name: Show the next version
+        run: |
+          echo ${{ steps.get_next_version.outputs.version }}
+          echo ${{ steps.get_next_version.outputs.hasNextVersion }}
       - uses: maicol07/github-changelog-action@master
         with:
           config_dir: ${{ github.event.inputs.config_dir }}
           filename: ${{ github.event.inputs.filename }}
           path: ${{ github.event.inputs.path }}
           tag_query: ${{ github.event.inputs.tag_query }}
-          next_version: ${{ github.event.inputs.next_version && github.event.inputs.next_version || steps.get_next_version.outputs.next_version }}
+          # Get next version from the input or from the autodetected version only if no_autodetect is false
+          next_version: ${{ github.event.inputs.next_version || steps.get_next_version.outputs.next_version }}
       - uses: oleksiyrudenko/gha-git-credentials@v2-latest
         with:
           token: '${{ secrets.GITHUB_TOKEN }}'
