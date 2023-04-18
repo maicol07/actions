@@ -35,14 +35,14 @@ jobs:
           version-type: ${{ github.event.inputs.version_type }}
           skip-tag: true
     outputs:
-      new_tag: ${{ steps.version_bump.outputs.newTag }}
+      newTag: ${{ steps.version_bump.outputs.newTag }}
 
   changelog:
     if: ${{ !github.event.inputs.no_changelog }}
     needs: bump
     uses: maicol07/actions/.github/workflows/changelog.yml@main
     with:
-      next_version: ${{ needs.bump.outputs.new_tag }}
+      next_version: ${{ needs.bump.outputs.newTag }}
       config_dir: ${{ github.event.inputs.config_dir }}
       filename: ${{ github.event.inputs.filename }}
       path: ${{ github.event.inputs.path }}
@@ -51,7 +51,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: changelog
+    needs: [bump, changelog]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -62,26 +62,26 @@ jobs:
       - uses: rickstaa/action-create-tag@v1
         id: "tag_create"
         with:
-          tag: ${{ needs.bump.outputs.new_tag }}
+          tag: ${{ needs.bump.outputs.newTag }}
           tag_exists_error: true
-          message: "Release ${{ needs.bump.outputs.new_tag }}"
+          message: "Release ${{ needs.bump.outputs.newTag }}"
       - name: Generate changelog only for the newest tag
         id: new_tag_changelog
         uses: maicol07/github-changelog-action@master
         with:
-          tag_query: ${{ steps.version_bump.outputs.newTag }}
+          tag_query: ${{ needs.bump.outputs.newTag }}
           filename: CHANGELOG-release.md
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           body_path: CHANGELOG-release.md
-          tag_name: ${{ steps.version_bump.outputs.newTag }}
+          tag_name: ${{ needs.bump.outputs.newTag }}
       - name: Remove File
         run: rm CHANGELOG-release.md
 
   publish:
     runs-on: ubuntu-latest
-    needs: release
+    needs: [bump, changelog, release]
     strategy:
       matrix:
         node-version: [19]
