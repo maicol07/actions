@@ -109,7 +109,6 @@ on:
         description: "Version bump type"
         required: false
         options:
-          - autodetect
           - patch
           - minor
           - major
