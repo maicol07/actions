@@ -10,7 +10,7 @@ on:
         type: string
         description: "Release channel"
         required: false
-      generate_changelog:
+      no_changelog:
         type: boolean
         description: "Generate changelog"
         required: false
@@ -36,7 +36,7 @@ jobs:
       new_tag: ${{ steps.version_bump.outputs.newTag }}
 
   changelog:
-    if: ${{ github.event.inputs.generate_changelog }}
+    if: ${{ !github.event.inputs.no_changelog }}
     needs: bump
     uses: maicol07/actions/.github/workflows/changelog.yml@main
     with:
