@@ -10,35 +10,20 @@ on:
         type: string
         description: "Release channel"
         required: false
+      generate_changelog:
+        type: boolean
+        description: "Generate changelog"
+        required: false
+        default: true
 
 jobs:
-  release_publish:
+  bump:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [19]
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: recursive
-
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Pull changes
-        run: git pull
-
       - name: Automated Version Bump
         id: version_bump
         uses: 'phips28/gh-action-bump-version@master'
@@ -46,7 +31,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           version-type: ${{ github.event.inputs.version_type == 'autodetect' && '' || github.event.inputs.version_type }}
+          skip-tag: true
+    outputs:
+      new_tag: ${{ steps.version_bump.outputs.newTag }}
 
+  changelog:
+    if: ${{ github.event.inputs.generate_changelog }}
+    needs: bump
+    uses: maicol07/actions/.github/workflows/changelog.yml@main
+    with:
+      next_version: ${{ needs.bump.outputs.new_tag }}
+      config_dir: ${{ github.event.inputs.config_dir }}
+      filename: ${{ github.event.inputs.filename }}
+      path: ${{ github.event.inputs.path }}
+      tag_query: ${{ github.event.inputs.tag_query }}
+      commit_message: ${{ github.event.inputs.commit_message }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: changelog
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: rickstaa/action-create-tag@v1
+        id: "tag_create"
+        with:
+          tag: ${{ needs.bump.outputs.new_tag }}
+          tag_exists_error: true
+          message: "Release ${{ needs.bump.outputs.new_tag }}"
       - name: Generate changelog only for the newest tag
         id: new_tag_changelog
         uses: maicol07/github-changelog-action@master
@@ -60,6 +74,33 @@ jobs:
           tag_name: ${{ steps.version_bump.outputs.newTag }}
       - name: Remove File
         run: rm CHANGELOG-release.md
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: release
+    strategy:
+      matrix:
+        node-version: [19]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+#      - name: Install dependencies
+#        run: pnpm install
+
+#      - name: Pull changes
+#        run: git pull
+
       - name: Set publishing config
         run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
         env:
