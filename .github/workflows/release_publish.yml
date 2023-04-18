@@ -45,7 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          version-type: ${{ github.event.inputs.version_type }}
+          version-type: ${{ github.event.inputs.version_type == 'autodetect' && '' || github.event.inputs.version_type }}
 
       - name: Generate changelog only for the newest tag
         id: new_tag_changelog
