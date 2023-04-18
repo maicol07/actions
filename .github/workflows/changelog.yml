@@ -45,6 +45,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - name: Pull changes
+        run: git pull
       - uses: maicol07/github-changelog-action@master
         with:
           config_dir: ${{ github.event.inputs.config_dir }}

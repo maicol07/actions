@@ -24,6 +24,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - name: Pull changes
+        run: git pull
       - name: Automated Version Bump
         id: version_bump
         uses: 'phips28/gh-action-bump-version@master'
@@ -55,6 +57,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - name: Pull changes
+        run: git pull
       - uses: rickstaa/action-create-tag@v1
         id: "tag_create"
         with:
@@ -98,9 +102,8 @@ jobs:
 #      - name: Install dependencies
 #        run: pnpm install
 
-#      - name: Pull changes
-#        run: git pull
-
+      - name: Pull changes
+        run: git pull
       - name: Set publishing config
         run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
         env:
