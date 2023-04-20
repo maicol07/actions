@@ -42,7 +42,6 @@ on:
         required: false
 
 jobs:
-  # Shrink the workflow to only one job
   release_publish:
     runs-on: ubuntu-latest
     strategy:
@@ -78,12 +77,6 @@ jobs:
           filename: ${{ github.event.inputs.filename }}
           path: ${{ github.event.inputs.path }}
           tag_query: ${{ github.event.inputs.tag_query }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-#      - name: Commit changes
-#        uses: EndBug/add-and-commit@v7
-#        with:
-#          message: ${{ github.event.inputs.commit_message }}
-#          add: ${{ github.event.inputs.filename }}
       - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v4
         id: git_auto_commit
@@ -128,16 +121,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
-
       - name: Install dependencies
         run: pnpm install
-
-#      - name: Pull changes
-#        run: git pull
       - name: Set publishing config
         run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-
       - name: Publish
         run: pnpm publish --access public --tag ${{ github.event.inputs.release_channel }}
