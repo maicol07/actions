@@ -1,6 +1,10 @@
 name: Build changelog
 on:
   workflow_call:
+    outputs:
+      commit_sha:
+        description: 'Changelog commit sha'
+        value: ${{ jobs.generate_changelog.outputs.commit_sha }}
     inputs:
       next_version:
         description: 'Next version tag to use instead of UNRELEASED. If not entered it will be fetched from the commits.'
@@ -65,6 +69,9 @@ jobs:
           file_pattern: 'CHANGELOG.md'
       - uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ github.event.inputs.commit_message }}
+        id: changelog_commit
         with:
           commit_message: ${{ github.event.inputs.commit_message }}
           file_pattern: 'CHANGELOG.md'
+    outputs:
+      commit_sha: ${{ steps.changelog_commit.outputs.commit_sha }}

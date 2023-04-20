@@ -65,6 +65,7 @@ jobs:
           tag: ${{ needs.bump.outputs.newTag }}
           tag_exists_error: true
           message: "Release ${{ needs.bump.outputs.newTag }}"
+          commit_sha: ${{ needs.changelog.outputs.commit_sha }}
       - name: Generate changelog only for the newest tag
         id: new_tag_changelog
         uses: maicol07/github-changelog-action@master
