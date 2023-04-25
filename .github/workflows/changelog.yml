@@ -64,10 +64,12 @@ jobs:
       - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ !github.event.inputs.commit_message }}
+        id: changelog_commit
         with:
           commit_message: "changelog: 📝 Updated changelog for ${{ github.event.inputs.next_version && 'release' || 'commit' }} ${{ github.event.inputs.next_version && github.event.inputs.next_version || github.sha }}"
           file_pattern: 'CHANGELOG.md'
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Commit & Push (provided commit message)
+        uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ github.event.inputs.commit_message }}
         id: changelog_commit
         with:
