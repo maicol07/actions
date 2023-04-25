@@ -61,19 +61,26 @@ jobs:
       - uses: oleksiyrudenko/gha-git-credentials@v2-latest
         with:
           token: '${{ secrets.GITHUB_TOKEN }}'
+      - name: Set commit message env conditionally bash
+        run: |
+            if [ -z "${{ github.event.inputs.commit_message }}" ]; then
+                if [ -z "${{ github.event.inputs.next_version }}" ]; then
+                    TYPE="commit"
+                    VALUE="${{ github.sha }}"
+                else
+                    TYPE="release"
+                    VALUE="${{ github.event.inputs.next_version }}"
+                fi
+                echo "COMMIT_MESSAGE=changelog: 📝 Updated changelog for $TYPE $VALUE" >> $GITHUB_ENV
+            else
+                echo "COMMIT_MESSAGE=${{ github.event.inputs.commit_message }}" >> $GITHUB_ENV
+            fi
       - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ !github.event.inputs.commit_message }}
         id: changelog_commit
         with:
-          commit_message: "changelog: 📝 Updated changelog for ${{ github.event.inputs.next_version && 'release' || 'commit' }} ${{ github.event.inputs.next_version && github.event.inputs.next_version || github.sha }}"
-          file_pattern: 'CHANGELOG.md'
-      - name: Commit & Push (provided commit message)
-        uses: stefanzweifel/git-auto-commit-action@v4
-        if: ${{ github.event.inputs.commit_message }}
-        id: changelog_commit
-        with:
-          commit_message: ${{ github.event.inputs.commit_message }}
+          commit_message: ${{ env.COMMIT_MESSAGE }}
           file_pattern: 'CHANGELOG.md'
     outputs:
       commit_sha: ${{ steps.changelog_commit.outputs.commit_sha }}
