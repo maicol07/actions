@@ -26,7 +26,7 @@ jobs:
       - uses: google-github-actions/release-please-action@v3
         id: release
         with:
-          release-type: ${{ github.event.inputs.release_type }}
+          release-type: ${{ inputs.release_type }}
           pull-request-title-pattern: 'chore: release ${version}'
     outputs:
         release_created: ${{ steps.release.outputs.release_created }}
@@ -45,7 +45,7 @@ jobs:
           submodules: recursive
       - uses: pnpm/action-setup@v2
         with:
-          version: ${{ github.event.inputs.path }}
+          version: ${{ inputs.pnpm_version }}
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -61,4 +61,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish
-        run: pnpm publish --access public --tag ${{ github.event.inputs.release_channel }}
+        run: pnpm publish --access public --tag ${{ inputs.release_channel }}
