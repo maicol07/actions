@@ -12,6 +12,12 @@ on:
         description: "Release type"
         required: false
         default: "node"
+      pnpm_version:
+        type: string
+        description: "PNPM version"
+        required: false
+        default: latest
+
 
 jobs:
   release:
@@ -39,7 +45,7 @@ jobs:
           submodules: recursive
       - uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: ${{ github.event.inputs.path }}
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
