@@ -68,17 +68,9 @@ jobs:
 # Path: .github/workflows/release.yml
 name: Release & Publish
 on:
-  workflow_dispatch:
-    inputs:
-      release_channel:
-        type: choice
-        description: "Release channel"
-        required: false
-        options:
-          - latest
-          - next
-          - beta
-          - alpha
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
