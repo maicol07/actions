@@ -81,5 +81,5 @@ jobs:
     uses: maicol07/actions/.github/workflows/release_publish.yml@main
     with:
       release_channel: ${{ github.event.inputs.release_channel }}
-  secrets: inherit # Or pass just what secret you want. This is required to pass the NPM_TOKEN needed to publish the package
+    secrets: inherit # Or pass just what secret you want. This is required to pass the NPM_TOKEN needed to publish the package
 ```
