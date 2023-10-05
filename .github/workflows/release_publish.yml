@@ -61,4 +61,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish
-        run: pnpm publish --access public --tag ${{ inputs.release_channel }}
+        run: pnpm publish --access public ${{ inputs.release_channel && '--tag ' + inputs.release_channel }}
