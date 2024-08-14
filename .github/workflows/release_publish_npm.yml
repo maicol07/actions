@@ -15,7 +15,7 @@ on:
         type: string
         description: "PNPM version"
         required: false
-        default: latest
+        default: ''
 
 
 jobs:
