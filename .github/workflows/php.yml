@@ -12,6 +12,10 @@ on:
         description: PHP extensions, comma separated
         type: string
         default: ''
+      fetch_depth:
+        description: Commits to fetch (0 = the whole history and the tags, e.g. to lint only the files changed since a ref)
+        type: number
+        default: 1
       run:
         description: Command to run once the dependencies are installed
         type: string
@@ -25,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: ${{ inputs.fetch_depth }}
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ inputs.php_version }}

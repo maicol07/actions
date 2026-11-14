@@ -8,6 +8,10 @@ on:
         description: Node.js version. With a bun.lock, Node.js is installed only when set
         type: string
         default: ''
+      fetch_depth:
+        description: Commits to fetch (0 = the whole history and the tags, e.g. to lint only the files changed since a ref)
+        type: number
+        default: 1
       run:
         description: Command to run once the dependencies are installed
         type: string
@@ -21,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: ${{ inputs.fetch_depth }}
       - uses: maicol07/actions/setup-js@v1
         with:
           node_version: ${{ inputs.node_version }}
