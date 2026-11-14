@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # The reusable workflows and the setup-js composite action.
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /setup-js
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      github-actions:
+        patterns: ['*']
