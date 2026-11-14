@@ -100,7 +100,7 @@ GitHub port of the Trust-IT `websites/utils/ci-templates` flow, one reusable wor
 | `release.yml` | Release PR on `release/next` (git-cliff), GitHub Release once merged | `changelog`, `tag_pattern`, `next_version`, `bump`; secret `token`; output `tag` |
 | `docker.yml` | Build & push of the `prod` target, Trivy image scan (report only) | `registry`, `image`, `tag`, `target`, `build_args`; secrets `registry_username`, `registry_password` |
 | `npm-publish.yml` | `bun publish` of a release tag | `tag`, `dist_tag`; secret `npm_token` |
-| `portainer.yml` | New tag in a Portainer Swarm stack file, redeploy, smoke test | `stack_id`, `endpoint_id`, `image`, `tag`, `url`; secrets `portainer_url`, `portainer_api_key` |
+| `portainer.yml` | New tag in one or more Portainer Swarm stack files, redeploy, smoke test, rollback on failure | `stacks` (JSON), `image`, `tag`; secrets `portainer_url`, `portainer_api_key` |
 
 The `setup-js` composite action (`maicol07/actions/setup-js@v1`) is the JS setup of `js.yml` and `npm-publish.yml`.
 Reference everything at `@v1` (a moving major tag): Dependabot's `github-actions` ecosystem then proposes `v2`.
@@ -162,7 +162,7 @@ need none.
 | `docker.yml` | secrets | `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` → `registry_username`, `registry_password` | pushing to a private registry (e.g. OCIR). For ghcr.io pass `github.actor` and `secrets.GITHUB_TOKEN`, with `permissions: packages: write` |
 | `npm-publish.yml` | secret | `NPM_TOKEN` → `npm_token` | `bun publish` (an npm granular token with publish rights on the package) |
 | `portainer.yml` | secrets | `PORTAINER_URL`, `PORTAINER_API_KEY` → `portainer_url`, `portainer_api_key` | the Portainer API (an access token of a user that only reaches the project's stacks) |
-| `portainer.yml` | variables | `PORTAINER_STACK_ID`, `PORTAINER_ENDPOINT_ID`, `APP_URL` → `stack_id`, `endpoint_id`, `url` | the stack to update (IDs from its Portainer URL: `#!/<endpoint>/docker/stacks/<name>?id=<stack>`) and the smoke test. Guard the job with `if: vars.PORTAINER_STACK_ID` so it is skipped until set |
+| `portainer.yml` | variable | `PORTAINER_STACKS` → `stacks` | the stacks to update, a JSON array of `{"stack_id", "endpoint_id", "url"}` (IDs from each stack's Portainer URL: `#!/<endpoint>/docker/stacks/<name>?id=<stack>`; `url`, optional, is the smoke test target). Guard the job with `if: vars.PORTAINER_STACKS` so it is skipped until set |
 
 Portainer must also have the image registry among its *Registries*, with credentials, or it cannot
 pull the new tag.
@@ -179,9 +179,10 @@ gh secret set REGISTRY_PASSWORD -R $repo          # paste the auth token
 # Portainer
 gh secret set PORTAINER_URL -R $repo --body 'https://portainer.example.com'
 gh secret set PORTAINER_API_KEY -R $repo          # paste the access token
-gh variable set PORTAINER_STACK_ID -R $repo --body 12
-gh variable set PORTAINER_ENDPOINT_ID -R $repo --body 1
-gh variable set APP_URL -R $repo --body 'https://app.example.com'
+gh variable set PORTAINER_STACKS -R $repo --body '[
+  {"stack_id": 12, "endpoint_id": 1, "url": "https://app.example.com"},
+  {"stack_id": 7, "endpoint_id": 3, "url": "https://app.other-host.example.com"}
+]'
 # npm
 gh secret set NPM_TOKEN -R $repo                  # paste the npm token
 ```

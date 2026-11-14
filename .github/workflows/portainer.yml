@@ -1,31 +1,27 @@
 name: Portainer
-# Deploys a tag to a Portainer Swarm stack: every service of the stack file running <image> gets
-# the new tag, and the stack is redeployed with a pull. The stack file in Portainer stays the one
-# that runs. Then an optional smoke test.
+# Deploys a tag to one or more Portainer Swarm stacks (e.g. the same app on several hosts): in each
+# stack file, every service running <image> gets the new tag, and the stack is redeployed with a
+# pull. The stack file in Portainer stays the one that runs. Then an optional smoke test: on
+# failure the previous stack file is redeployed and the job fails.
 # The API key acts as its Portainer user: give it a user that only reaches these stacks.
 on:
   workflow_call:
     inputs:
-      stack_id:
-        description: Portainer stack ID
-        type: string
-        required: true
-      endpoint_id:
-        description: Portainer environment (endpoint) ID of the stack
+      stacks:
+        description: >-
+          JSON array of the target stacks, e.g. from a repo variable:
+          [{"stack_id": 12, "endpoint_id": 1, "url": "https://app.example.com"}].
+          `url` is optional: without it, no smoke test
         type: string
         required: true
       image:
-        description: Image without tag, as written in the stack file (e.g. registry/namespace/app)
+        description: Image without tag, as written in the stack files (e.g. registry/namespace/app)
         type: string
         required: true
       tag:
         description: Image tag to deploy
         type: string
         required: true
-      url:
-        description: URL that must answer below HTTP 500 after the deploy. Empty skips the smoke test
-        type: string
-        default: ''
     secrets:
       portainer_url:
         required: true
@@ -37,38 +33,46 @@ permissions: {}
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    strategy:
+      # A failed stack does not stop the deploy of the others.
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.stacks) }}
     # Two deploys must not update the same stack at once.
-    concurrency: portainer-${{ inputs.stack_id }}
+    concurrency: portainer-${{ matrix.target.endpoint_id }}-${{ matrix.target.stack_id }}
     environment:
       name: production
-      url: ${{ inputs.url }}
+      url: ${{ matrix.target.url }}
+    env:
+      PORTAINER_URL: ${{ secrets.portainer_url }}
+      API_KEY: ${{ secrets.portainer_api_key }}
+      STACK: ${{ matrix.target.stack_id }}
+      ENDPOINT: ${{ matrix.target.endpoint_id }}
     steps:
       - name: Deploy
         env:
-          PORTAINER_URL: ${{ secrets.portainer_url }}
-          API_KEY: ${{ secrets.portainer_api_key }}
-          STACK: ${{ inputs.stack_id }}
-          ENDPOINT: ${{ inputs.endpoint_id }}
           IMAGE: ${{ inputs.image }}
           TAG: ${{ inputs.tag }}
         run: |
           api() { curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' "$@"; }
-          api "$PORTAINER_URL/api/stacks/$STACK/file" | jq -r .StackFileContent > stack.yml
-          env=$(api "$PORTAINER_URL/api/stacks/$STACK" | jq -c '.Env // []')
+          api "$PORTAINER_URL/api/stacks/$STACK/file" | jq -r .StackFileContent > previous.yml
+          api "$PORTAINER_URL/api/stacks/$STACK" | jq -c '.Env // []' > env.json
+          cp previous.yml stack.yml
           # Any tag or digest of the image, not other images that only share its prefix.
           yq -i '(.services[] | select(.image // "" | test("^" + strenv(IMAGE) + "([:@].*)?$")) | .image) = strenv(IMAGE) + ":" + strenv(TAG)' stack.yml
           if ! grep -qF "$IMAGE:$TAG" stack.yml; then
             echo "::error::No service of stack $STACK runs $IMAGE"
             exit 1
           fi
-          jq -n --rawfile file stack.yml --argjson env "$env" \
-            '{StackFileContent: $file, Env: $env, Prune: false, RepullImageAndRedeploy: true}' \
+          jq -n --rawfile file stack.yml --slurpfile env env.json \
+            '{StackFileContent: $file, Env: $env[0], Prune: false, RepullImageAndRedeploy: true}' \
             | api -X PUT "$PORTAINER_URL/api/stacks/$STACK?endpointId=$ENDPOINT" --data @- > /dev/null
           echo "::notice::$IMAGE:$TAG deployed to stack $STACK"
       - name: Smoke test
-        if: inputs.url
+        id: smoke
+        if: matrix.target.url
         env:
-          URL: ${{ inputs.url }}
+          URL: ${{ matrix.target.url }}
         run: |
           code=$(curl -s -o /dev/null -w '%{http_code}' --retry 10 --retry-delay 10 --retry-all-errors "$URL")
           if [ "$code" -lt 200 ] || [ "$code" -ge 500 ]; then
@@ -76,3 +80,12 @@ jobs:
             exit 1
           fi
           echo "Smoke test: $URL -> HTTP $code"
+      - name: Rollback
+        # Only after a failed smoke test: a failed deploy left the stack as it was.
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          api() { curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' "$@"; }
+          jq -n --rawfile file previous.yml --slurpfile env env.json \
+            '{StackFileContent: $file, Env: $env[0], Prune: false, RepullImageAndRedeploy: true}' \
+            | api -X PUT "$PORTAINER_URL/api/stacks/$STACK?endpointId=$ENDPOINT" --data @- > /dev/null
+          echo "::warning::Stack $STACK rolled back to its previous stack file"
