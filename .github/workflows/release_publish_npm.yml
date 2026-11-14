@@ -1,4 +1,6 @@
 name: Release & Publish
+# DEPRECATED: use release.yml + npm-publish.yml (chained on its `tag` output). Kept for the repos
+# still calling it.
 on:
   workflow_call:
     inputs:
@@ -22,6 +24,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - run: "echo '::warning::maicol07/actions release_publish_npm.yml is deprecated: use release.yml + npm-publish.yml'"
       - uses: google-github-actions/release-please-action@v3
         id: release
         with:
