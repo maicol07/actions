@@ -1,0 +1,25 @@
+name: Setup JS
+description: Bun when the repo has a bun.lock (Node.js only if node_version is set), otherwise Node.js (+ pnpm for a pnpm-lock.yaml); then the dependencies from the lock file.
+inputs:
+  node_version:
+    description: Node.js version. Default lts/* without a bun.lock, none with it (set it for tools that need the Node runtime, e.g. vue-tsc or vitest with jsdom)
+    default: ''
+runs:
+  using: composite
+  steps:
+    - if: hashFiles('bun.lock', 'bun.lockb') != ''
+      uses: oven-sh/setup-bun@v2
+    # pnpm's version comes from package.json's packageManager field.
+    - if: hashFiles('bun.lock', 'bun.lockb') == '' && hashFiles('pnpm-lock.yaml') != ''
+      uses: pnpm/action-setup@v6
+    - if: hashFiles('bun.lock', 'bun.lockb') == '' || inputs.node_version != ''
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node_version || 'lts/*' }}
+        cache: ${{ hashFiles('pnpm-lock.yaml') != '' && 'pnpm' || hashFiles('package-lock.json') != '' && 'npm' || '' }}
+    - shell: bash
+      run: |
+        if [ -f bun.lock ] || [ -f bun.lockb ]; then bun install --frozen-lockfile
+        elif [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile
+        else npm ci
+        fi

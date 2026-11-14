@@ -1,0 +1,27 @@
+name: JS
+# Base of a project's JS quality/test jobs: Node.js (+ pnpm or Bun, from the lock file), the
+# dependencies, and the given command. One call per job, e.g. `run: bun run lint`.
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: Node.js version. With a bun.lock, Node.js is installed only when set
+        type: string
+        default: ''
+      run:
+        description: Command to run once the dependencies are installed
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maicol07/actions/setup-js@v1
+        with:
+          node_version: ${{ inputs.node_version }}
+      - run: ${{ inputs.run }}

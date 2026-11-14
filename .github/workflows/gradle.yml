@@ -1,0 +1,29 @@
+name: Gradle
+# Base of a project's Gradle quality/test jobs: JDK, Gradle (with its cache) and the given command,
+# e.g. `run: ./gradlew detekt check`.
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        description: JDK version (Temurin)
+        type: string
+        required: true
+      run:
+        description: Command to run, e.g. ./gradlew check
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  gradle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java_version }}
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ${{ inputs.run }}

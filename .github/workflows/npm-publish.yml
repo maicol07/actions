@@ -1,0 +1,39 @@
+name: npm publish
+# Publishes the package at a release tag to npmjs.com with `bun publish`, e.g. chained on
+# release.yml's `tag` output. The version comes from package.json: bump it in the release PR
+# (release.yml's `bump`). Builds through the package's prepack/prepublishOnly scripts.
+# ponytail: token auth, no provenance: bun publish has no npm trusted publishing (OIDC) yet
+# (oven-sh/bun#15601). Switch to it once that lands.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Git tag to publish
+        type: string
+        required: true
+      dist_tag:
+        description: npm dist-tag
+        type: string
+        default: latest
+    secrets:
+      npm_token:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: maicol07/actions/setup-js@v1
+      # bun publish also for the packages still on pnpm/npm.
+      - if: hashFiles('bun.lock', 'bun.lockb') == ''
+        uses: oven-sh/setup-bun@v2
+      - run: bun publish --access public --tag "$DIST_TAG"
+        env:
+          DIST_TAG: ${{ inputs.dist_tag }}
+          NPM_CONFIG_TOKEN: ${{ secrets.npm_token }}
