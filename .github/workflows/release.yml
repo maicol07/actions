@@ -7,7 +7,8 @@ name: Release
 # - otherwise rewrite the release/next branch as the default branch + the changelog regenerated
 #   with the unreleased commits under the next version (+ the `bump` command's changes), and open
 #   or update its PR.
-# The changelog only covers what comes after a `fork-point` tag, when there is one.
+# The changelog only covers what comes after a `fork-point` tag, when there is one, without the
+# upstream commits merged since (reachable from the tags not matching `tag_pattern`).
 # Tags and PRs created with GITHUB_TOKEN start no workflow: chain the build on the `tag` output,
 # or pass a `token` (PAT or app token) if the release PR must run the checks.
 on:
@@ -74,8 +75,18 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          cliff() { git cliff "$CLIFF_CONFIG" ${range:+"$range"} --tag-pattern "$TAG_PATTERN" "$@"; }
-          range=$(git rev-parse -q --verify refs/tags/fork-point >/dev/null && echo fork-point..HEAD || true)
+          cliff() { git cliff "$CLIFF_CONFIG" ${range:+"$range"} "${skip[@]}" --tag-pattern "$TAG_PATTERN" "$@"; }
+          range=
+          skip=()
+          if git rev-parse -q --verify refs/tags/fork-point >/dev/null; then
+            range=fork-point..HEAD
+            # Upstream's commits merged after the fork point: the ones reachable from the tags that are
+            # not this repo's releases (git-cliff has no --first-parent).
+            upstream_tags=$(git tag -l | grep -Pv "$TAG_PATTERN" || true)
+            if [ -n "$upstream_tags" ]; then
+              mapfile -t skip < <(git rev-list $upstream_tags ^fork-point | sed 's/^/--skip-commit=/')
+            fi
+          fi
           # A merge commit keeps the release commit; a squash merge appends " (#<PR>)" to its subject.
           released=$(git log -1 --format=%s -- "$CHANGELOG" | sed -n 's/^chore(release): 🔖 \([^ ]*\).*$/\1/p')
           if [ -n "$released" ] && ! git rev-parse -q --verify "refs/tags/$released" >/dev/null; then

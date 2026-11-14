@@ -107,7 +107,8 @@ Reference everything at `@v1` (a moving major tag): Dependabot's `github-actions
 
 To override a job, replace its `uses:` with your own steps under the same job name, or leave it out.
 `release.yml` uses the project's `cliff.toml`, or this repo's one. A `fork-point` tag limits the changelog
-and the commit lint to the commits after it (e.g. a fork of an upstream project).
+and the commit lint to the commits after it (e.g. a fork of an upstream project). The changelog also
+leaves out the upstream commits merged later: the ones reachable from tags not matching `tag_pattern`.
 Tags and PRs created with `GITHUB_TOKEN` trigger no workflow: chain the image build on the `tag` output.
 
 ```yaml
