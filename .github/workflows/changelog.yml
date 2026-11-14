@@ -47,7 +47,7 @@ jobs:
     steps:
       - run: "echo '::warning::maicol07/actions changelog.yml is deprecated: use release.yml'"
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
@@ -60,7 +60,7 @@ jobs:
           path: ${{ github.event.inputs.path }}
           tag_query: ${{ github.event.inputs.tag_query }}
           next_version: ${{ github.event.inputs.next_version }}
-      - uses: oleksiyrudenko/gha-git-credentials@v2-latest
+      - uses: oleksiyrudenko/gha-git-credentials@v2.1.2
         with:
           token: '${{ secrets.GITHUB_TOKEN }}'
       - name: Set commit message env conditionally bash
@@ -78,7 +78,7 @@ jobs:
                 echo "COMMIT_MESSAGE=${{ github.event.inputs.commit_message }}" >> $GITHUB_ENV
             fi
       - name: Commit & Push
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v7
         if: ${{ !github.event.inputs.commit_message }}
         id: changelog_commit
         with:
