@@ -149,6 +149,43 @@ jobs:
       registry_password: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Secrets, variables and settings per repo
+The workflows take secrets and values as inputs: the names below are the convention of the calling
+`ci.yml`s (map them in `secrets:` / `with:`). `security`, `commit-lint`, `php`, `js` and `gradle`
+need none.
+
+| Workflow | Kind | Name | Needed for |
+|---|---|---|---|
+| `release.yml` | setting | *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests* (in an organization, enable it at the organization level first) | opening the release PR |
+| `release.yml` | secret (optional) | `RELEASE_TOKEN` → `token` | a PAT or app token, if the release PR must run the checks (e.g. required status checks): PRs and tags created with `GITHUB_TOKEN` start no workflow |
+| `release.yml` | variable (optional) | `PRERELEASE` → `prerelease: ${{ vars.PRERELEASE == 'true' }}` | marking the next merged release as a pre-release |
+| `docker.yml` | secrets | `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` → `registry_username`, `registry_password` | pushing to a private registry (e.g. OCIR). For ghcr.io pass `github.actor` and `secrets.GITHUB_TOKEN`, with `permissions: packages: write` |
+| `npm-publish.yml` | secret | `NPM_TOKEN` → `npm_token` | `bun publish` (an npm granular token with publish rights on the package) |
+| `portainer.yml` | secrets | `PORTAINER_URL`, `PORTAINER_API_KEY` → `portainer_url`, `portainer_api_key` | the Portainer API (an access token of a user that only reaches the project's stacks) |
+| `portainer.yml` | variables | `PORTAINER_STACK_ID`, `PORTAINER_ENDPOINT_ID`, `APP_URL` → `stack_id`, `endpoint_id`, `url` | the stack to update (IDs from its Portainer URL: `#!/<endpoint>/docker/stacks/<name>?id=<stack>`) and the smoke test. Guard the job with `if: vars.PORTAINER_STACK_ID` so it is skipped until set |
+
+Portainer must also have the image registry among its *Registries*, with credentials, or it cannot
+pull the new tag.
+
+Example, with the `gh` CLI (values are placeholders; a secret without `--body` is read from stdin,
+so it stays out of the shell history):
+```sh
+repo=owner/app
+# Release PR
+gh api -X PUT repos/$repo/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true
+# Docker (OCIR)
+gh secret set REGISTRY_USERNAME -R $repo --body 'namespace/user@example.com'
+gh secret set REGISTRY_PASSWORD -R $repo          # paste the auth token
+# Portainer
+gh secret set PORTAINER_URL -R $repo --body 'https://portainer.example.com'
+gh secret set PORTAINER_API_KEY -R $repo          # paste the access token
+gh variable set PORTAINER_STACK_ID -R $repo --body 12
+gh variable set PORTAINER_ENDPOINT_ID -R $repo --body 1
+gh variable set APP_URL -R $repo --body 'https://app.example.com'
+# npm
+gh secret set NPM_TOKEN -R $repo                  # paste the npm token
+```
+
 ### Dependabot
 Dependabot has no shared config: each repo needs its own `.github/dependabot.yml`, e.g.:
 ```yaml
