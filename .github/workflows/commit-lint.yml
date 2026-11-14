@@ -1,0 +1,38 @@
+name: Commit lint
+# Conventional Commits on every commit of the PR or of the push (merge commits excluded), gitmoji
+# allowed after the colon. Commits reachable from a `fork-point` tag (a template or upstream the
+# project started from) and commits of bots (Dependabot...) are not linted.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  commit_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Lint commit messages
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if git merge-base --is-ancestor "$BASE" "$HEAD" 2>/dev/null; then
+            range=$BASE..$HEAD
+          else
+            # First push or force push: no previous commit to start from.
+            range=$HEAD^!
+          fi
+          fork_point=$(git rev-parse -q --verify refs/tags/fork-point >/dev/null && echo ^fork-point || true)
+          bad=$(git log --no-merges --format='%an%x09%s' "$range" $fork_point \
+            | awk -F '\t' '$1 !~ /\[bot\]$/ { print $2 }' \
+            | grep -Ev '^((feat|fix|docs|style|refactor|test|chore|ci|build|perf|revert)(\([^)]+\))?!?: .+|Revert ".+")$' || true)
+          if [ -n "$bad" ]; then
+            echo '::error::Not Conventional Commits (<type>(<scope>): <gitmoji> <subject>):'
+            printf '%s\n' "$bad"
+            exit 1
+          fi
+          echo 'Every commit follows Conventional Commits'

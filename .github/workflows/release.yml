@@ -1,0 +1,131 @@
+name: Release
+# Release PR, release-please style, with git-cliff. Call it on each push to the default branch,
+# after the project's checks:
+# - if the last commit that changed the changelog is a release PR's `chore(release): 🔖 <version>`
+#   and that version has no tag yet, the release PR was just merged: create its GitHub Release
+#   (and tag) on that commit, with its git-cliff notes, and output the tag;
+# - otherwise rewrite the release/next branch as the default branch + the changelog regenerated
+#   with the unreleased commits under the next version (+ the `bump` command's changes), and open
+#   or update its PR.
+# The changelog only covers what comes after a `fork-point` tag, when there is one.
+# Tags and PRs created with GITHUB_TOKEN start no workflow: chain the build on the `tag` output,
+# or pass a `token` (PAT or app token) if the release PR must run the checks.
+on:
+  workflow_call:
+    inputs:
+      changelog:
+        description: Changelog file
+        type: string
+        default: CHANGELOG.md
+      tag_pattern:
+        description: Regex of the tags that are releases
+        type: string
+        default: '^v?[0-9]+\.[0-9]+\.[0-9]+$'
+      next_version:
+        description: Shell command printing the next version. Default git-cliff's bump of the commits (feat -> minor, breaking -> major, the rest -> patch)
+        type: string
+        default: ''
+      prerelease:
+        description: Mark the GitHub Release as a pre-release (e.g. from a repo variable)
+        type: boolean
+        default: false
+      bump:
+        description: Shell command writing $VERSION in the project's files (e.g. `npm version "$VERSION" --no-git-tag-version`), committed in the release PR
+        type: string
+        default: ''
+    secrets:
+      token:
+        description: Token creating the release PR and the release. Default GITHUB_TOKEN
+        required: false
+    outputs:
+      tag:
+        description: Tag of the release just created, empty otherwise
+        value: ${{ jobs.release.outputs.tag }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Two pushes in a row must not race on the branch or the PR.
+    concurrency: release
+    outputs:
+      tag: ${{ steps.state.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.14.2
+      - id: state
+        env:
+          CHANGELOG: ${{ inputs.changelog }}
+          TAG_PATTERN: ${{ inputs.tag_pattern }}
+          NEXT_VERSION: ${{ inputs.next_version }}
+          BUMP: ${{ inputs.bump }}
+          # The project's cliff.toml, or the shared one.
+          CLIFF_CONFIG: ${{ hashFiles('cliff.toml') == '' && '--config-url=https://raw.githubusercontent.com/maicol07/actions/v1/cliff.toml' || '--config=cliff.toml' }}
+          GITHUB_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          # Shared cliff.toml templates read it as GITHUB_REPO (owner/name); cliff.toml files with a
+          # [remote.github] fetch the PR/author metadata with the token (private repos: 404 without).
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          cliff() { git cliff "$CLIFF_CONFIG" ${range:+"$range"} --tag-pattern "$TAG_PATTERN" "$@"; }
+          range=$(git rev-parse -q --verify refs/tags/fork-point >/dev/null && echo fork-point..HEAD || true)
+          # A merge commit keeps the release commit; a squash merge appends " (#<PR>)" to its subject.
+          released=$(git log -1 --format=%s -- "$CHANGELOG" | sed -n 's/^chore(release): 🔖 \([^ ]*\).*$/\1/p')
+          if [ -n "$released" ] && ! git rev-parse -q --verify "refs/tags/$released" >/dev/null; then
+            # The release commit, not the merge: a commit merged meanwhile goes to the next release.
+            ref=$(git log -1 --format=%H -- "$CHANGELOG")
+            git checkout -q "$ref"
+            # ponytail: cut to GitHub's 125000-character release body limit.
+            cliff --unreleased --tag "$released" --strip all | head -c 120000 > "$RUNNER_TEMP/release-notes.md"
+            { echo "tag=$released"; echo "ref=$ref"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          pending=$(cliff --unreleased --context | jq '[.[].commits[]] | length')
+          if [ "$pending" -eq 0 ]; then
+            echo '::notice::Nothing to release'
+            exit 0
+          fi
+          if [ -n "$NEXT_VERSION" ]; then
+            next=$(eval "$NEXT_VERSION")
+          else
+            next=$(cliff --bumped-version)
+          fi
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            echo "::notice::Nothing to release: $next is already tagged"
+            exit 0
+          fi
+          cliff --tag "$next" -o "$CHANGELOG"
+          if [ -n "$BUMP" ]; then
+            VERSION=$next eval "$BUMP"
+          fi
+          # ponytail: cut to GitHub's 65536-character PR body limit, the full notes are in the changelog.
+          { printf ':robot: I have created a release *beep* *boop*\n---\n\n'
+            cliff --unreleased --tag "$next" --strip header
+          } | head -c 65000 > "$RUNNER_TEMP/pr-body.md"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+
+      - if: steps.state.outputs.tag
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.token || github.token }}
+          tag_name: ${{ steps.state.outputs.tag }}
+          target_commitish: ${{ steps.state.outputs.ref }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          prerelease: ${{ inputs.prerelease }}
+
+      # Commits every change of the step above: the changelog and the bump.
+      - if: steps.state.outputs.next
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.token || github.token }}
+          branch: release/next
+          commit-message: 'chore(release): 🔖 ${{ steps.state.outputs.next }}'
+          title: 'chore(release): 🔖 ${{ steps.state.outputs.next }}'
+          body-path: ${{ runner.temp }}/pr-body.md

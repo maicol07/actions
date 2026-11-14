@@ -1,0 +1,46 @@
+name: Security
+# Secrets, vulnerable lock files and IaC misconfigurations of the checked-out tree.
+# Trivy fails only on HIGH/CRITICAL issues that have a fix to apply. trivy-action is pinned by SHA:
+# its tags were rewritten in a supply-chain attack (March 2026).
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # Betterleaks (the gitleaks successor) on the tree, not the history. A false positive gets
+  # `betterleaks:allow` at the end of its line; whole paths go in a .betterleaks.toml.
+  secret_detection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker://ghcr.io/betterleaks/betterleaks:v1.10.1
+        with:
+          args: dir --no-banner --redact --verbose .
+
+  # composer.lock, bun.lock, package-lock.json... wherever they are in the repo.
+  lockfile_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+  # Dockerfile, compose files and other IaC (root user, secrets in ENV...).
+  config_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: config
+          severity: HIGH,CRITICAL
+          exit-code: 1
