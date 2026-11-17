@@ -54,7 +54,16 @@ jobs:
           IMAGE: ${{ inputs.image }}
           TAG: ${{ inputs.tag }}
         run: |
-          api() { curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' "$@"; }
+          set -o pipefail
+          # On an HTTP error, print the response (truncated) instead of piping it to jq.
+          api() {
+            local out; out=$(mktemp)
+            if ! curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -o "$out" "$@"; then
+              echo "::error::Portainer: $(head -c 500 "$out")" >&2
+              return 1
+            fi
+            cat "$out"
+          }
           api "$PORTAINER_URL/api/stacks/$STACK/file" | jq -r .StackFileContent > previous.yml
           api "$PORTAINER_URL/api/stacks/$STACK" | jq -c '.Env // []' > env.json
           cp previous.yml stack.yml
@@ -84,7 +93,16 @@ jobs:
         # Only after a failed smoke test: a failed deploy left the stack as it was.
         if: failure() && steps.smoke.outcome == 'failure'
         run: |
-          api() { curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' "$@"; }
+          set -o pipefail
+          # On an HTTP error, print the response (truncated) instead of piping it to jq.
+          api() {
+            local out; out=$(mktemp)
+            if ! curl --fail-with-body -sS -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -o "$out" "$@"; then
+              echo "::error::Portainer: $(head -c 500 "$out")" >&2
+              return 1
+            fi
+            cat "$out"
+          }
           jq -n --rawfile file previous.yml --slurpfile env env.json \
             '{StackFileContent: $file, Env: $env[0], Prune: false, RepullImageAndRedeploy: true}' \
             | api -X PUT "$PORTAINER_URL/api/stacks/$STACK?endpointId=$ENDPOINT" --data @- > /dev/null
