@@ -134,8 +134,9 @@ jobs:
       run: vendor/bin/pest --ci
   release:
     needs: [security, tests]
-    # The checks skip the release PR merge: skipped needs must not skip the release.
-    if: github.event_name == 'push' && !failure() && !cancelled()
+    # The checks skip the release PR merge: skipped needs must not skip the release, failed or
+    # cancelled ones must (failure() misses the cancelled ones).
+    if: github.event_name == 'push' && !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     uses: maicol07/actions/.github/workflows/release.yml@v2
     permissions:
       contents: write
