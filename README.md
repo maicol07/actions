@@ -92,7 +92,7 @@ GitHub port of the Trust-IT `websites/utils/ci-templates` flow, one reusable wor
 
 | Workflow | Jobs | Inputs |
 |---|---|---|
-| `security.yml` | `secret_detection` (Betterleaks, private repos only: public ones have GitHub Secret Protection), `config_scan` (Trivy). Vulnerable dependencies: Dependabot alerts | - |
+| `security.yml` | `scan`: secret detection (Betterleaks, private repos only: public ones have GitHub Secret Protection) and config scan (Trivy), one job. Vulnerable dependencies: Dependabot alerts | - |
 | `commit-lint.yml` | `commit_lint`: Conventional Commits, gitmoji after the colon | - |
 | `php.yml` | PHP + cached `composer install` + a command | `php_version`, `extensions`, `run` |
 | `js.yml` | Bun (or Node.js + pnpm/npm without a `bun.lock`) + install + a command | `run`, `node_version` |

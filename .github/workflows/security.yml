@@ -11,28 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  # Betterleaks (the gitleaks successor) on the tree, not the history. A false positive gets
-  # `betterleaks:allow` at the end of its line; whole paths go in a .betterleaks.toml at the repo
-  # root ([extend] useDefault = true + [[allowlists]] paths), which Betterleaks only reads when told.
-  secret_detection:
-    # Release PR and its merge skipped as in config_scan.
-    if: >-
-      github.event.repository.private &&
-      github.head_ref != 'release/next' && !(github.event_name == 'push' && (
-        startsWith(github.event.head_commit.message, 'chore(release):') ||
-        (startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, '/release/next'))))
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker://ghcr.io/betterleaks/betterleaks:v1.10.1
-        env:
-          # Empty: the default rules.
-          BETTERLEAKS_CONFIG: ${{ hashFiles('.betterleaks.toml') != '' && '.betterleaks.toml' || '' }}
-        with:
-          args: dir --no-banner --redact --verbose .
-
-  # Dockerfile, compose files and other IaC (root user, secrets in ENV...).
-  config_scan:
+  # One job, not one per scanner: each job is billed rounded up to the minute.
+  scan:
     # Not on the release PR (main plus the changelog and version bump, already checked on main) nor on
     # its merge (merge commit or squash). A custom merge commit message falls back to running the job.
     if: >-
@@ -42,7 +22,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      # Betterleaks (the gitleaks successor) on the tree, not the history. A false positive gets
+      # `betterleaks:allow` at the end of its line; whole paths go in a .betterleaks.toml at the repo
+      # root ([extend] useDefault = true + [[allowlists]] paths), which Betterleaks only reads when told.
+      - name: Secret detection
+        if: github.event.repository.private
+        uses: docker://ghcr.io/betterleaks/betterleaks:v1.10.1
+        env:
+          # Empty: the default rules.
+          BETTERLEAKS_CONFIG: ${{ hashFiles('.betterleaks.toml') != '' && '.betterleaks.toml' || '' }}
+        with:
+          args: dir --no-banner --redact --verbose .
+      # Dockerfile, compose files and other IaC (root user, secrets in ENV...). Runs even when the
+      # secret detection failed, so both report.
+      - name: Config scan
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.76.2
           scan-type: config
