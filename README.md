@@ -143,7 +143,8 @@ jobs:
       pull-requests: write
   docker:
     needs: release
-    if: needs.release.outputs.tag
+    # !cancelled(): otherwise the checks skipped on the release merge skip this job too.
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag }}
     uses: maicol07/actions/.github/workflows/docker.yml@v2
     permissions:
       packages: write
@@ -169,7 +170,7 @@ need none.
 | `docker.yml` | secrets | `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` → `registry_username`, `registry_password` | pushing to a private registry (e.g. OCIR). For ghcr.io pass `github.actor` and `secrets.GITHUB_TOKEN`, with `permissions: packages: write` |
 | `npm-publish.yml` | secret | `NPM_TOKEN` → `npm_token` | `bun publish` (an npm granular token with publish rights on the package) |
 | `portainer.yml` | secrets | `PORTAINER_URL`, `PORTAINER_API_KEY` → `portainer_url`, `portainer_api_key` | the Portainer API (an access token of a user that only reaches the project's stacks) |
-| `portainer.yml` | variable | `PORTAINER_STACKS` → `stacks` | the stacks to update, a JSON array of `{"stack_id", "endpoint_id", "url"}` (IDs from each stack's Portainer URL: `#!/<endpoint>/docker/stacks/<name>?id=<stack>`; `url`, optional, is the smoke test target). Guard the job with `if: vars.PORTAINER_STACKS` so it is skipped until set |
+| `portainer.yml` | variable | `PORTAINER_STACKS` → `stacks` | the stacks to update, a JSON array of `{"stack_id", "endpoint_id", "url"}` (IDs from each stack's Portainer URL: `#!/<endpoint>/docker/stacks/<name>?id=<stack>`; `url`, optional, is the smoke test target). Guard the job with `if: ${{ !cancelled() && needs.docker.result == 'success' && vars.PORTAINER_STACKS }}` so it is skipped until set |
 
 Portainer must also have the image registry among its *Registries*, with credentials, or it cannot
 pull the new tag.
