@@ -68,7 +68,7 @@ jobs:
           NEXT_VERSION: ${{ inputs.next_version }}
           BUMP: ${{ inputs.bump }}
           # The project's cliff.toml, or the shared one.
-          CLIFF_CONFIG: ${{ hashFiles('cliff.toml') == '' && '--config-url=https://raw.githubusercontent.com/maicol07/actions/v1/cliff.toml' || '--config=cliff.toml' }}
+          CLIFF_CONFIG: ${{ hashFiles('cliff.toml') == '' && '--config-url=https://raw.githubusercontent.com/maicol07/actions/v2/cliff.toml' || '--config=cliff.toml' }}
           GITHUB_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           # Shared cliff.toml templates read it as GITHUB_REPO (owner/name); cliff.toml files with a
           # [remote.github] fetch the PR/author metadata with the token (private repos: 404 without).

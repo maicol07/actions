@@ -102,8 +102,9 @@ GitHub port of the Trust-IT `websites/utils/ci-templates` flow, one reusable wor
 | `npm-publish.yml` | `bun publish` of a release tag | `tag`, `dist_tag`; secret `npm_token` |
 | `portainer.yml` | New tag in one or more Portainer Swarm stack files, redeploy, smoke test, rollback on failure | `stacks` (JSON), `image`, `tag`; secrets `portainer_url`, `portainer_api_key` |
 
-The `setup-js` composite action (`maicol07/actions/setup-js@v1`) is the JS setup of `js.yml` and `npm-publish.yml`.
-Reference everything at `@v1` (a moving major tag): Dependabot's `github-actions` ecosystem then proposes `v2`.
+The `setup-js` composite action (`maicol07/actions/setup-js@v2`) is the JS setup of `js.yml` and `npm-publish.yml`.
+Reference everything at `@v2`, a major tag moved to each `v2.x.y` release: Dependabot's `github-actions`
+ecosystem then proposes `v3`. `v1` stays as it was for the deprecated workflows.
 
 To override a job, replace its `uses:` with your own steps under the same job name, or leave it out.
 `release.yml` uses the project's `cliff.toml`, or this repo's one. A `fork-point` tag limits the changelog
@@ -123,11 +124,11 @@ on:
 
 jobs:
   security:
-    uses: maicol07/actions/.github/workflows/security.yml@v1
+    uses: maicol07/actions/.github/workflows/security.yml@v2
   commit_lint:
-    uses: maicol07/actions/.github/workflows/commit-lint.yml@v1
+    uses: maicol07/actions/.github/workflows/commit-lint.yml@v2
   tests:
-    uses: maicol07/actions/.github/workflows/php.yml@v1
+    uses: maicol07/actions/.github/workflows/php.yml@v2
     with:
       php_version: '8.5'
       run: vendor/bin/pest --ci
@@ -135,14 +136,14 @@ jobs:
     needs: [security, tests]
     # The checks skip the release PR merge: skipped needs must not skip the release.
     if: github.event_name == 'push' && !failure() && !cancelled()
-    uses: maicol07/actions/.github/workflows/release.yml@v1
+    uses: maicol07/actions/.github/workflows/release.yml@v2
     permissions:
       contents: write
       pull-requests: write
   docker:
     needs: release
     if: needs.release.outputs.tag
-    uses: maicol07/actions/.github/workflows/docker.yml@v1
+    uses: maicol07/actions/.github/workflows/docker.yml@v2
     permissions:
       packages: write
     with:
@@ -204,5 +205,6 @@ updates:
     groups:
       github-actions:
         patterns: ['*']
-  # + composer, bun, gradle, docker, docker-compose... as the repo needs
+  # + one entry per other ecosystem of the repo: composer, bun/npm, gradle, docker (Dockerfiles),
+  # docker-compose, gitsubmodule...
 ```

@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: ${{ inputs.fetch_depth }}
-      - uses: maicol07/actions/setup-js@v1
+      - uses: maicol07/actions/setup-js@v2
         with:
           node_version: ${{ inputs.node_version }}
       - run: ${{ inputs.run }}
