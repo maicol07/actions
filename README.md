@@ -110,6 +110,9 @@ To override a job, replace its `uses:` with your own steps under the same job na
 and the commit lint to the commits after it (e.g. a fork of an upstream project). The changelog also
 leaves out the upstream commits merged later: the ones reachable from tags not matching `tag_pattern`.
 Tags and PRs created with `GITHUB_TOKEN` trigger no workflow: chain the image build on the `tag` output.
+The checks (`security`, `commit-lint`, `php`, `js`, `gradle`) skip the release PR and its merge on
+main (a merge commit from `release/next` or a squashed `chore(release):` commit): main plus the
+changelog, already checked. A project's own check jobs can copy their `if:`.
 
 ```yaml
 # Path: .github/workflows/ci.yml
@@ -130,7 +133,8 @@ jobs:
       run: vendor/bin/pest --ci
   release:
     needs: [security, tests]
-    if: github.event_name == 'push'
+    # The checks skip the release PR merge: skipped needs must not skip the release.
+    if: github.event_name == 'push' && !failure() && !cancelled()
     uses: maicol07/actions/.github/workflows/release.yml@v1
     permissions:
       contents: write

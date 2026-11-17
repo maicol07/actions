@@ -15,7 +15,12 @@ jobs:
   # `betterleaks:allow` at the end of its line; whole paths go in a .betterleaks.toml at the repo
   # root ([extend] useDefault = true + [[allowlists]] paths), which Betterleaks only reads when told.
   secret_detection:
-    if: github.event.repository.private
+    # Release PR and its merge skipped as in config_scan.
+    if: >-
+      github.event.repository.private &&
+      github.head_ref != 'release/next' && !(github.event_name == 'push' && (
+        startsWith(github.event.head_commit.message, 'chore(release):') ||
+        (startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, '/release/next'))))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -28,6 +33,12 @@ jobs:
 
   # Dockerfile, compose files and other IaC (root user, secrets in ENV...).
   config_scan:
+    # Not on the release PR (main plus the changelog and version bump, already checked on main) nor on
+    # its merge (merge commit or squash). A custom merge commit message falls back to running the job.
+    if: >-
+      github.head_ref != 'release/next' && !(github.event_name == 'push' && (
+        startsWith(github.event.head_commit.message, 'chore(release):') ||
+        (startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, '/release/next'))))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -22,6 +22,12 @@ permissions:
 
 jobs:
   js:
+    # Not on the release PR (main plus the changelog and version bump, already checked on main) nor on
+    # its merge (merge commit or squash). A custom merge commit message falls back to running the job.
+    if: >-
+      github.head_ref != 'release/next' && !(github.event_name == 'push' && (
+        startsWith(github.event.head_commit.message, 'chore(release):') ||
+        (startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, '/release/next'))))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
